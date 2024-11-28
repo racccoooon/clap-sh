@@ -40,11 +40,20 @@ pub struct BashZsh {}
 
 impl Shell for BashZsh {
     fn quote_string(&self, s: &str) -> String {
-        format!("'{}'", s
-            .replace("'", r#"'\''"#)
-            .replace("\n", r#"'$'\n''"#)
-            .replace("\t", r#"'$'\t''"#)
-        )
+        let escaped = s
+            .replace("\\", r#"\\"#)
+            .replace("'", r#"\'"#)
+            .replace("\r", r#"\r"#)
+            .replace("\n", r#"\n"#)
+            .replace("\t", r#"\t"#)
+            .replace("\x1b", r#"\e"#)
+            ;
+
+        if s.len() != escaped.len() {
+            format!("$'{}'", escaped)
+        } else {
+            format!("'{}'", escaped)
+        }
     }
     fn set_string_var(&self, name: &str, value: &str) {
         println!("{name}={v}", v = self.quote_string(value));
@@ -79,18 +88,21 @@ exit 1
 
     fn check_handlers(&self, handlers: &Vec<String>) {
         let mut err_message = clap::builder::StyledStr::new();
-        err_message.write_str(color_print::cstr!(r#"<bold><red>error:</red></bold> handler <yellow>'$1'</yellow> not found"#)).unwrap();
+        err_message.write_str(color_print::cstr!("<bold><red>error:</red></bold> handler <yellow>'%s'</yellow> not found\n")).unwrap();
+
+        let err_unstyled = err_message.to_string();
+        let err_styled = err_message.ansi().to_string();
 
         print!(r#"
 __argparse_handler_err () {{
   if [[ -t 1 ]]; then
-    >&2 echo "{err_styled}"
+    >&2 printf {err_styled} "$1"
   else
-    >&2 echo "{err_unstyled}"
+    >&2 printf {err_unstyled} "$1"
   fi
   exit 1
 }}
-"#, err_styled = err_message.ansi(), err_unstyled = err_message);
+"#, err_styled = self.quote_string(err_styled.as_str()), err_unstyled = self.quote_string(err_unstyled.as_str()));
         for handler in handlers {
             println!("type -t {handler} >/dev/null || __argparse_handler_err {handler}");
         }
@@ -141,18 +153,21 @@ exit 1
 
     fn check_handlers(&self, handlers: &Vec<String>) {
         let mut err_message = clap::builder::StyledStr::new();
-        err_message.write_str(color_print::cstr!(r#"<bold><red>error:</red></bold> handler <yellow>'$1'</yellow> not found"#)).unwrap();
+        err_message.write_str(color_print::cstr!("<bold><red>error:</red></bold> handler <yellow>'%s'</yellow> not found\n")).unwrap();
+
+        let err_unstyled = err_message.to_string();
+        let err_styled = err_message.ansi().to_string();
 
         print!(r#"
 __argparse_handler_err () {{
   if [ -t 1 ]; then
-    >&2 printf '%s' "{err_styled}"
+    >&2 printf {err_styled} "$1"
   else
-    >&2 printf '%s' "{err_unstyled}"
+    >&2 printf {err_unstyled} "$1"
   fi
   exit 1
 }}
-"#, err_styled = err_message.ansi(), err_unstyled = err_message);
+"#, err_styled = self.quote_string(err_styled.as_str()), err_unstyled = self.quote_string(err_unstyled.as_str()));
         for handler in handlers {
             println!("type {handler} >/dev/null || __argparse_handler_err {handler}");
         }
