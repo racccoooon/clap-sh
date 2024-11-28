@@ -1,0 +1,41 @@
+__argparse_error_unstyled=$'foo the bars or whatever
+
+Usage: example-bash.sh [OPTIONS] [COMMAND]
+
+Commands:
+  bar, -B  bar subcommand
+  boo      
+  help     Print this message or the help of the given subcommand(s)
+
+Options:
+  -d, --debug...     debug the application
+  -f, --foo <FOOS>   how much foo
+  -q, --qux <QUX>    which quxes
+  -n, --name <NAME>  the name to greet
+  -h, --help         Print help
+  -V, --version      Print version
+'
+__argparse_error_styled=$'foo the bars or whatever
+
+\e[1m\e[4mUsage:\e[0m \e[1mexample-bash.sh\e[0m [OPTIONS] [COMMAND]
+
+\e[1m\e[4mCommands:\e[0m
+  \e[1mbar\e[0m, \e[1m-B\e[0m  bar subcommand
+  \e[1mboo\e[0m      
+  \e[1mhelp\e[0m     Print this message or the help of the given subcommand(s)
+
+\e[1m\e[4mOptions:\e[0m
+  \e[1m-d\e[0m, \e[1m--debug\e[0m...     debug the application
+  \e[1m-f\e[0m, \e[1m--foo\e[0m <FOOS>   how much foo
+  \e[1m-q\e[0m, \e[1m--qux\e[0m <QUX>    which quxes
+  \e[1m-n\e[0m, \e[1m--name\e[0m <NAME>  the name to greet
+  \e[1m-h\e[0m, \e[1m--help\e[0m         Print help
+  \e[1m-V\e[0m, \e[1m--version\e[0m      Print version
+'
+
+if [[ -t 1 ]]; then
+   echo "${__argparse_error_styled}"
+else
+   echo "${__argparse_error_unstyled}"
+fi
+exit 1

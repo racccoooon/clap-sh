@@ -1,0 +1,17 @@
+
+__argparse_handler_err () {
+  if [[ -t 1 ]]; then
+    >&2 printf $'\e[31m\e[1merror:\e[39m\e[22m handler \e[33m\'%s\'\e[39m not found' "$1"
+  else
+    >&2 printf $'error: handler \'%s\' not found' "$1"
+  fi
+  exit 1
+}
+type -t bar_read_cmd >/dev/null || __argparse_handler_err bar_read_cmd
+key='x'
+foo='bar'
+name=$'foo\'bar'
+qux=('1' 'two' 'hello world' $'a\nb' $'a\\nb')
+debug='3'
+with_foo_not_set='y'
+bar_read_cmd

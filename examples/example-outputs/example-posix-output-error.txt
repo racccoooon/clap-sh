@@ -1,0 +1,19 @@
+__argparse_error_unstyled='error: unrecognized subcommand '\''unknown'\''
+
+Usage: example-posix.sh [OPTIONS] [COMMAND]
+
+For more information, try '\''--help'\''.
+'
+__argparse_error_styled='[1m[31merror:[0m unrecognized subcommand '\''[33munknown[0m'\''
+
+[1m[4mUsage:[0m [1mexample-posix.sh[0m [OPTIONS] [COMMAND]
+
+For more information, try '\''[1m--help[0m'\''.
+'
+
+if [ -t 1 ]; then
+  >&2 printf '%s' "${__argparse_error_styled}"
+else
+  >&2 printf '%s' "${__argparse_error_unstyled}"
+fi
+exit 1
