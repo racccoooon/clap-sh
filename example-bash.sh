@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+set -eu
 
-read -r -d '' ARGPARSE_CONFIG <<'EOF' || true
+ARGPARSE_CONFIG='
 name "example"
 description "foo the bars or whatever"
 version "6.6.6"
@@ -11,7 +11,7 @@ handler "main"
 infer-subcommands true
 // always-call-handler true
 
-opt "foo" short="f" long="foo" value-name="FOOS" default="7" description="how much foo"
+opt "foo" short="f" long="foo" value-name="FOOS" description="how much foo"
 opt "qux" short="q" long="qux" value-name="QUX" repeated=true description="which quxes"
 
 opt "name" short="n" long="name" default="world" description="the name to greet"
@@ -44,15 +44,39 @@ subcommand "bar" {
 subcommand "boo" {
     handler "boo_cmd"
 }
-EOF
+'
 
 name=
+qux=
+key=
+value=
 
 main() {
   echo "hello ${name}!"
+
+  if [[ -n "${debug+x}" ]]; then
+    echo "debug is on!"
+  fi
+
+  if [[ -z "${foo+x}" ]]; then
+    echo "foo is not set!"
+  else
+    echo "foo is $foo"
+  fi
+
+  for q in "${qux[@]}"; do
+    echo "qux: $q"
+  done
 }
 
-argparse_eval="$(echo "$ARGPARSE_CONFIG" | target/debug/argparse-shell-rs "$0" "${@}")"
-if [[ $? != 0 ]]; then exit 1 ;fi
-#eval "$argparse_eval"
-echo "$argparse_eval"
+bar_write_cmd() {
+  echo "writing key \"$key\" with value \"$value\""
+}
+
+bar_read_cmd() {
+  echo "reading key \"$key\""
+}
+
+argparse_eval="$(printf '%s' "$ARGPARSE_CONFIG" | target/debug/clap-sh bash -n "$0" -- "${@}")"
+if [ $? != 0 ] ; then exit 1 ; fi
+eval "$argparse_eval"

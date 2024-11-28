@@ -99,6 +99,7 @@ struct CfgApp {
 
 #[derive(Debug, Clone)]
 pub struct App {
+    pub name: Option<String>,
     pub version: Option<String>,
     pub infer_subcommands: bool,
     pub args_override_self: bool,
@@ -236,6 +237,7 @@ impl Into<Command> for CfgCommand {
 impl Into<App> for CfgApp {
     fn into(self) -> App {
         App {
+            name: self.name.clone(),
             version: self.version,
             infer_subcommands: self.infer_subcommands.unwrap_or(false),
             args_override_self: self.args_override_self.unwrap_or(true),

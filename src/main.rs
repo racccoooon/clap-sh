@@ -182,10 +182,18 @@ fn handle_matches(matches: &ArgMatches, config: &config::Command, vars: &mut Has
 }
 
 
-fn do_things(shell: &Box<dyn Shell>) -> Result<(), Error> {
-    let mut config_str = read_to_string(std::io::stdin())?;
-    std::io::stdin().read_to_string(&mut config_str)?;
+fn do_things<'a>(shell: &Box<dyn Shell>, config: Option<&String>, progname: Option<String>, args: impl Iterator<Item=&'a String>) -> Result<(), Error> {
+    let config_str = if let Some(str) = config {
+        str.to_string()
+    } else {
+        read_to_string(std::io::stdin())?
+    };
+
     let config = config::parse(config_str.as_str())?;
+
+    let progname = vec![progname.or(config.name).expect("missing program name, supply in config or via command line")];
+
+    let args = progname.iter().chain(args.map(|x|x));
 
     let mut cmd = build_command(&config.command)
         .infer_subcommands(config.infer_subcommands)
@@ -195,27 +203,85 @@ fn do_things(shell: &Box<dyn Shell>) -> Result<(), Error> {
         cmd = cmd.version(version);
     }
 
-
-    let matches = cmd.clone().try_get_matches_from(
-        std::env::args().skip(1).collect::<Vec<String>>())?;
+    let matches = cmd.clone().try_get_matches_from(args)?;
 
     let mut vars: HashMap<String, VarValue> = HashMap::new();
     let mut handlers: Vec<String> = Vec::new();
     handle_matches(&matches, &config.command, &mut vars, &mut handlers);
-    shell.check_handlers(&handlers);
-    shell.write_vars(&vars);
-    shell.write_handlers(&handlers);
+    if !handlers.is_empty() {
+        shell.check_handlers(&handlers);
+    }
+    shell.set_vars(&vars);
+    shell.call_handlers(&handlers);
 
     Ok(())
 }
 
 fn main() {
-    let shell: Box<dyn Shell> = Box::new(shell::BashZsh {});
+    let matches = clap::command!()
+        .arg(
+            clap::arg!(
+                -c --config <CONFIG> "config string, stdin is used if not provided"
+            ).global(true)
+        )
+        .arg(
+            clap::arg!(
+                -n --progname <NAME> "the name of the program to use in error messages and help text"
+            ).global(true)
+        )
+        .arg(
+            clap::arg!(
+                -N --"progname-in-args" "the first argument is used as the program name"
+            ).global(true).conflicts_with("progname")
+        )
+        .subcommand(
+            clap::Command::new("bash")
+                .alias("zsh")
+                .about("generate bash/zsh-compatible code")
+                .arg(clap::arg!([args] ... "arguments to parse")
+                    .trailing_var_arg(true))
+        )
+        .subcommand(
+            clap::Command::new("posix")
+                .about("generate posix-compatible code")
+                .arg(clap::arg!([args] ... "arguments to parse")
+                    .trailing_var_arg(true))
+        )
+        .subcommand_required(true)
+        .get_matches();
 
-    match do_things(&shell) {
+
+    let (cmd, matches) = matches.subcommand().unwrap();
+
+    let config = matches.get_one::<String>("config");
+
+    let mut args = matches.get_many::<String>("args")
+        .unwrap_or(clap::parser::ValuesRef::default());
+
+    let progname_in_args = matches.get_flag("progname-in-args");
+
+    let progname = if progname_in_args {
+        Some(args.next().expect("missing program name in arguments").to_string())
+    } else if let Some(progname) = matches.get_one::<String>("progname") {
+        Some(progname.to_string())
+    } else {
+        None
+    };
+
+
+    let shell: Box<dyn Shell> = if cmd == "bash" {
+        Box::new(shell::BashZsh {})
+    } else if cmd == "posix" {
+        Box::new(shell::Posix {})
+    } else {
+        panic!("invalid command");
+    };
+
+
+    match do_things(&shell, config, progname, args) {
         Ok(_) => {}
         Err(err) => {
-            shell.write_error(err);
+            shell.print_error(err);
         }
     }
 }
